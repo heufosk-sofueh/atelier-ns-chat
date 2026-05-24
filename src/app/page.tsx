@@ -2,31 +2,66 @@
 
 import { useState } from 'react';
 
+type NavButton = {
+  label: string;
+  url: string;
+};
+
 type Message = {
   role: 'user' | 'assistant';
   content: string;
+  navButtons?: NavButton[];
+};
+
+function parseMessage(raw: string): { text: string; navButtons: NavButton[] } {
+  const navButtons: NavButton[] = [];
+  const regex = /<!--NAV:(.*?)-->/g;
+  let match;
+  while ((match = regex.exec(raw)) !== null) {
+    try {
+      const btn = JSON.parse(match[1]);
+      navButtons.push(btn);
+    } catch {}
+  }
+  const text = raw.replace(/<!--NAV:.*?-->/g, '').trim();
+  return { text, navButtons };
+}
+
+const INITIAL_MESSAGE: Message = {
+  role: 'assistant',
+  content: 'こんにちは！アトリエエヌズのAIアシスタントです。\nお探しの商品やご質問はありますか？',
+  navButtons: [
+    { label: '全商品を見る', url: 'https://atelierns.com/collections/%E5%85%A8%E5%95%86%E5%93%81' },
+    { label: '新着商品', url: 'https://atelierns.com/collections/new-arrival-1' },
+    { label: 'SALE', url: 'https://atelierns.com/collections/offpriceitem' },
+  ],
 };
 
 export default function Home() {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>([INITIAL_MESSAGE]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const sendMessage = async () => {
-    if (!input.trim() || loading) return;
-    const userMessage: Message = { role: 'user', content: input };
+  const sendMessage = async (text?: string) => {
+    const messageText = text || input;
+    if (!messageText.trim() || loading) return;
+
+    const userMessage: Message = { role: 'user', content: messageText };
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
     setInput('');
     setLoading(true);
+
     try {
+      const apiMessages = newMessages.map(m => ({ role: m.role, content: m.content }));
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: newMessages }),
+        body: JSON.stringify({ messages: apiMessages }),
       });
       const data = await res.json();
-      setMessages([...newMessages, { role: 'assistant', content: data.content }]);
+      const { text: parsedText, navButtons } = parseMessage(data.content);
+      setMessages([...newMessages, { role: 'assistant', content: parsedText, navButtons }]);
     } catch {
       setMessages([...newMessages, { role: 'assistant', content: 'エラーが発生しました。' }]);
     } finally {
@@ -35,38 +70,67 @@ export default function Home() {
   };
 
   return (
-    <main className="flex flex-col h-screen max-w-2xl mx-auto p-4">
-      <h1 className="text-2xl font-bold text-center mb-4">アトリエエヌズ AIチャット</h1>
-      <div className="flex-1 overflow-y-auto space-y-3 mb-4 border rounded-lg p-4 bg-gray-50">
-        {messages.length === 0 && (
-          <p className="text-gray-400 text-center mt-10">メッセージを入力してください</p>
-        )}
+    <main style={{ display: 'flex', flexDirection: 'column', height: '100vh', maxWidth: '640px', margin: '0 auto', padding: '16px', fontFamily: 'sans-serif' }}>
+      <h1 style={{ textAlign: 'center', marginBottom: '16px', fontSize: '20px', fontWeight: 'bold' }}>アトリエエヌズ AIチャット</h1>
+      <div style={{ flex: 1, overflowY: 'auto', marginBottom: '16px', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '16px', backgroundColor: '#f9fafb', display: 'flex', flexDirection: 'column', gap: '12px' }}>
         {messages.map((msg, i) => (
-          <div key={i} className={msg.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
-            <div className={msg.role === 'user' ? 'rounded-lg px-4 py-2 max-w-xs bg-blue-500 text-white' : 'rounded-lg px-4 py-2 max-w-xs bg-white border text-gray-800'}>
+          <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
+            <div style={{
+              padding: '10px 14px',
+              borderRadius: '12px',
+              maxWidth: '80%',
+              backgroundColor: msg.role === 'user' ? '#3b82f6' : '#ffffff',
+              color: msg.role === 'user' ? '#ffffff' : '#1f2937',
+              border: msg.role === 'assistant' ? '1px solid #e5e7eb' : 'none',
+              whiteSpace: 'pre-wrap',
+              lineHeight: '1.6',
+            }}>
               {msg.content}
             </div>
+            {msg.navButtons && msg.navButtons.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '8px', maxWidth: '80%' }}>
+                {msg.navButtons.map((btn, j) => (
+                  <a
+                    key={j}
+                    href={btn.url}
+                    style={{
+                      display: 'inline-block',
+                      padding: '6px 14px',
+                      backgroundColor: '#f3e8ff',
+                      color: '#7c3aed',
+                      borderRadius: '20px',
+                      border: '1px solid #c4b5fd',
+                      textDecoration: 'none',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                    }}
+                  >
+                    {btn.label} →
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
         ))}
         {loading && (
-          <div className="flex justify-start">
-            <div className="bg-white border rounded-lg px-4 py-2 text-gray-500">入力中...</div>
+          <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+            <div style={{ padding: '10px 14px', borderRadius: '12px', backgroundColor: '#ffffff', border: '1px solid #e5e7eb', color: '#6b7280' }}>入力中...</div>
           </div>
         )}
       </div>
-      <div className="flex gap-2">
+      <div style={{ display: 'flex', gap: '8px' }}>
         <input
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
           placeholder="メッセージを入力..."
-          className="flex-1 border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          style={{ flex: 1, border: '1px solid #d1d5db', borderRadius: '8px', padding: '10px 14px', fontSize: '16px', outline: 'none' }}
         />
         <button
-          onClick={sendMessage}
+          onClick={() => sendMessage()}
           disabled={loading}
-          className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 disabled:opacity-50"
+          style={{ backgroundColor: '#3b82f6', color: '#ffffff', padding: '10px 20px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '16px', opacity: loading ? 0.5 : 1 }}
         >
           送信
         </button>
