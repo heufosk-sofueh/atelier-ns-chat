@@ -6,7 +6,7 @@
 
   const styles = `
     #ans-chat-btn {
-      position: fixed; bottom: 24px; right: 24px;
+      position: fixed; bottom: 80px; right: 24px;
       width: 56px; height: 56px; border-radius: 50%;
       background: #7c3aed; color: white; border: none;
       cursor: pointer; font-size: 26px;
@@ -17,7 +17,7 @@
     }
     #ans-chat-btn:hover { transform: scale(1.1); }
     #ans-chat-window {
-      position: fixed; bottom: 90px; right: 24px;
+      position: fixed; bottom: 148px; right: 24px;
       width: 360px; height: 520px; background: white;
       border-radius: 16px;
       box-shadow: 0 8px 32px rgba(0,0,0,0.18);
@@ -81,7 +81,7 @@
     @media (max-width: 480px) {
       #ans-chat-window {
         width: calc(100vw - 16px); right: 8px;
-        bottom: 80px; height: 70vh;
+        bottom: 136px; height: 70vh;
       }
     }
   `;
