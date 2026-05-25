@@ -90,7 +90,7 @@
         border-radius: 0;
       }
       #ans-chat-btn {
-        bottom: 16px;
+        bottom: 120px;
         right: 16px;
       }
     }
