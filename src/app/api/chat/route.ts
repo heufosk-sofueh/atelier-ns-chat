@@ -73,6 +73,16 @@ async function searchProducts(query: string): Promise<Product[]> {
   }
 }
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
+
+export async function OPTIONS() {
+  return new Response(null, { status: 204, headers: corsHeaders });
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { messages } = await request.json();
@@ -115,9 +125,9 @@ ${FAQ_DATA}
 
     return NextResponse.json({
       content: response.content[0].type === 'text' ? response.content[0].text : '',
-    });
+    }, { headers: corsHeaders });
   } catch (error) {
     console.error('Error:', error);
-    return NextResponse.json({ error: 'エラーが発生しました' }, { status: 500 });
+    return NextResponse.json({ error: 'エラーが発生しました' }, { status: 500, headers: corsHeaders });
   }
 }
