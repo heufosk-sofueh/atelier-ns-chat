@@ -102,7 +102,7 @@
 
   const btn = document.createElement('button');
   btn.id = 'ans-chat-btn';
-  btn.innerHTML = '💬';
+  btn.innerHTML = '💬 スタッフに聞く';
   btn.title = 'AIスタッフに質問する';
   document.body.appendChild(btn);
 
