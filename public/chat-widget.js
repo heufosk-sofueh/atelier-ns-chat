@@ -208,7 +208,7 @@
     }
   }
 
-  addMessage('assistant', 'こんにちは！アトリエエヌズのAIスタッフです。\nご質問はお気軽にどうぞ！', [
+  addMessage('assistant', 'いらっしゃいませ！サイズ選びや商品のこと、配送・返品など、お気軽にご質問ください😊', [
     { label: '全商品を見る', url: 'https://atelierns.com/collections/%E5%85%A8%E5%95%86%E5%93%81' },
     { label: 'SALE', url: 'https://atelierns.com/collections/offpriceitem' }
   ]);
