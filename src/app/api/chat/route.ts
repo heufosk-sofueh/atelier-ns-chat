@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { NextRequest, NextResponse } from 'next/server';
+import { FAQ_DATA } from './faq-data';
 
 const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -24,13 +25,16 @@ const SITE_MAP = `
 - 五十嵐かほるさんコラボ: https://atelierns.com/collections/kaoruigarashi
 - 伊藤美帆さんコラボ: https://atelierns.com/collections/atelier-ns-m
 - Life Hapisan コラボ: https://atelierns.com/collections/lifehapisan
-- 返品・交換について: https://atelierns.com/pages/%E8%BF%94%E5%93%81-%E4%BA%A4%E6%8F%9B%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6
+- 返品・返金ポリシー: https://atelierns.com/policies/refund-policy
+- 配送ポリシー: https://atelierns.com/policies/shipping-policy
 - ご試着無料キャンペーン: https://atelierns.com/pages/goshichakumuryo
 - ご試着できる場所: https://atelierns.com/pages/ginzaatelier
 - 予約商品について: https://atelierns.com/pages/yoyakusyouhin
 - ご利用案内: https://atelierns.com/pages/userguide
 - お問い合わせ: https://atelierns.com/pages/contact
 - 営業日・問い合わせ: https://atelierns.com/pages/holiday
+- メールが届かない場合: https://atelierns.com/pages/careermail
+- 注文商品が届かない場合: https://atelierns.com/pages/cyuumonsyouhin
 `;
 
 type Product = {
@@ -86,14 +90,20 @@ export async function POST(request: NextRequest) {
 ${SITE_MAP}
 ${productInfo}
 
+【サイト公式FAQ・ポリシー情報】
+以下はサイトから収集した正確な情報です。必ずこの情報のみを使用し、推測で答えないでください：
+
+${FAQ_DATA}
+
 【回答ルール】
 1. 回答本文にURLやリンクは一切書かないでください
-2. 商品が見つかった場合は、上記【検索結果】の正確なURLのみを使用してください。URLは絶対に推測や変更をしないでください
-3. 回答の最後に以下のJSON形式でナビゲーションボタン情報を含めてください（本文ではなくボタンとして表示されます）：
-   <!--NAV:{"label":"商品名はこちら","url":"https://atelierns.com/products/handle"}-->
-4. 複数案内する場合はNAVタグを複数並べてください
-5. 商品が見つからない場合はカテゴリーページへ案内し、お問い合わせも促してください
-6. 回答は3〜5文程度の簡潔な文章にしてください。箇条書きや区切り線は使わないでください`;
+2. 返品・配送・キャンペーン・営業日などのポリシーに関する質問は、必ず上記【サイト公式FAQ・ポリシー情報】の内容のみを使用してください。自己判断や推測で回答することは絶対禁止です
+3. FAQ情報に記載がない内容は「詳しくはお問い合わせページをご確認ください」と案内してください
+4. 商品が見つかった場合は、上記【検索結果】の正確なURLのみを使用してください
+5. 回答の最後に以下のJSON形式でナビゲーションボタン情報を含めてください（本文ではなくボタンとして表示されます）：
+<!--NAV:{"label":"ページ名はこちら","url":"https://atelierns.com/..."}-->
+6. 複数案内する場合はNAVタグを複数並べてください
+7. 回答は3〜5文程度の簡潔な文章にしてください。箇条書きや区切り線は使わないでください`;
 
     const response = await client.messages.create({
       model: 'claude-opus-4-5',
