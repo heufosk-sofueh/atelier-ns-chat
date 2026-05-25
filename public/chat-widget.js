@@ -6,7 +6,7 @@
 
   const styles = `
     #ans-chat-btn {
-      position: fixed; bottom: 80px; right: 24px;
+      position: fixed; bottom: 24px; right: 24px;
       width: 56px; height: 56px; border-radius: 50%;
       background: #7c3aed; color: white; border: none;
       cursor: pointer; font-size: 26px;
