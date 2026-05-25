@@ -233,17 +233,23 @@
   if (window.visualViewport) {
     function adjustForKeyboard() {
       var vv = window.visualViewport;
+      win.style.position = 'fixed';
+      win.style.top = vv.offsetTop + 'px';
+      win.style.left = '0';
+      win.style.width = '100vw';
       win.style.height = vv.height + 'px';
-      win.style.top = '0px';
       win.style.bottom = 'auto';
     }
     function resetHeight() {
-      win.style.height = '';
+      win.style.position = '';
       win.style.top = '';
+      win.style.left = '';
+      win.style.width = '';
+      win.style.height = '';
       win.style.bottom = '';
     }
     window.visualViewport.addEventListener('resize', adjustForKeyboard);
-    inputEl.addEventListener('focus', adjustForKeyboard);
+    window.visualViewport.addEventListener('scroll', adjustForKeyboard);
     inputEl.addEventListener('blur', resetHeight);
   }
 })();
