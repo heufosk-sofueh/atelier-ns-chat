@@ -226,4 +226,21 @@
   inputEl.addEventListener('keydown', function(e) {
     if (e.key === 'Enter' && !isComposing) sendMessage();
   });
+
+  if (window.visualViewport) {
+    function adjustForKeyboard() {
+      var vv = window.visualViewport;
+      win.style.height = vv.height + 'px';
+      win.style.top = vv.offsetTop + 'px';
+      win.style.bottom = 'auto';
+    }
+    function resetHeight() {
+      win.style.height = '';
+      win.style.top = '';
+      win.style.bottom = '';
+    }
+    window.visualViewport.addEventListener('resize', adjustForKeyboard);
+    inputEl.addEventListener('focus', adjustForKeyboard);
+    inputEl.addEventListener('blur', resetHeight);
+  }
 })();
