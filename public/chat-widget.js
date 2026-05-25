@@ -6,14 +6,17 @@
 
   const styles = `
     #ans-chat-btn {
-      position: fixed; bottom: 120px; right: 24px;
-      width: 56px; height: 56px; border-radius: 50%;
+      position: fixed; bottom: 120px; right: 16px;
+      height: 52px; border-radius: 26px;
+      padding: 0 18px;
       background: #7c3aed; color: white; border: none;
-      cursor: pointer; font-size: 26px;
+      cursor: pointer; font-size: 14px; font-weight: bold;
       box-shadow: 0 4px 16px rgba(124,58,237,0.4);
       z-index: 99999; display: flex;
       align-items: center; justify-content: center;
+      gap: 6px;
       transition: transform 0.2s;
+      white-space: nowrap;
     }
     #ans-chat-btn:hover { transform: scale(1.1); }
     #ans-chat-window {
