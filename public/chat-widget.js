@@ -80,8 +80,18 @@
     #ans-chat-send:disabled { opacity: 0.5; cursor: default; }
     @media (max-width: 480px) {
       #ans-chat-window {
-        width: calc(100vw - 16px); right: 8px;
-        bottom: 136px; height: 70vh;
+        width: 100vw;
+        right: 0;
+        left: 0;
+        bottom: 0;
+        top: 0;
+        height: 100%;
+        max-height: 100%;
+        border-radius: 0;
+      }
+      #ans-chat-btn {
+        bottom: 16px;
+        right: 16px;
       }
     }
   `;
