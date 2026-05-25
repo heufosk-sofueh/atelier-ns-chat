@@ -234,7 +234,7 @@
     function adjustForKeyboard() {
       var vv = window.visualViewport;
       win.style.height = vv.height + 'px';
-      win.style.top = vv.offsetTop + 'px';
+      win.style.top = '0px';
       win.style.bottom = 'auto';
     }
     function resetHeight() {
