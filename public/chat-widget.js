@@ -88,8 +88,8 @@
         left: 0;
         bottom: 0;
         top: 0;
-        height: 100%;
-        max-height: 100%;
+        height: 100dvh;
+        max-height: 100dvh;
         border-radius: 0;
       }
       #ans-chat-btn {
@@ -230,26 +230,5 @@
     if (e.key === 'Enter' && !isComposing) sendMessage();
   });
 
-  if (window.visualViewport) {
-    function adjustForKeyboard() {
-      var vv = window.visualViewport;
-      win.style.position = 'fixed';
-      win.style.top = vv.offsetTop + 'px';
-      win.style.left = '0';
-      win.style.width = '100vw';
-      win.style.height = vv.height + 'px';
-      win.style.bottom = 'auto';
-    }
-    function resetHeight() {
-      win.style.position = '';
-      win.style.top = '';
-      win.style.left = '';
-      win.style.width = '';
-      win.style.height = '';
-      win.style.bottom = '';
-    }
-    window.visualViewport.addEventListener('resize', adjustForKeyboard);
-    window.visualViewport.addEventListener('scroll', adjustForKeyboard);
-    inputEl.addEventListener('blur', resetHeight);
-  }
+
 })();
