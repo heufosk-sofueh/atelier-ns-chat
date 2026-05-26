@@ -67,13 +67,50 @@ async function fetchSitemapUrls(): Promise<string[]> {
   console.log('sitemap.xml を取得中...');
   const res = await fetch(SITEMAP_URL);
   const xml = await res.text();
-  const matches = xml.matchAll(/<loc>([^<]+)<\/loc>/g);
-  const urls: string[] = [];
-  for (const m of matches) {
-    urls.push(m[1].trim());
+
+  // sitemapindex か通常のsitemapかを判定
+  const isSitemapIndex = xml.includes('<sitemapindex');
+
+  if (isSitemapIndex) {
+    // サブsitemapのURLを取得
+    const subSitemapMatches = xml.matchAll(/<loc>([^<]+)<\/loc>/g);
+    const subSitemapUrls: string[] = [];
+    for (const m of subSitemapMatches) {
+      const url = m[1].trim();
+      // 日本語（デフォルト）のsitemapのみ対象（zh, zh-tw, zh-cn は除外）
+      if (!url.includes('/zh/') && !url.includes('/zh-tw/') && !url.includes('/zh-cn/')) {
+        subSitemapUrls.push(url);
+      }
+    }
+    console.log(`サブsitemap: ${subSitemapUrls.length} 件を検出`);
+
+    // 各サブsitemapからURLを収集
+    const allUrls: string[] = [];
+    for (const subUrl of subSitemapUrls) {
+      try {
+        const subRes = await fetch(subUrl);
+        const subXml = await subRes.text();
+        const matches = subXml.matchAll(/<loc>([^<]+)<\/loc>/g);
+        for (const m of matches) {
+          allUrls.push(m[1].trim());
+        }
+        await sleep(300);
+      } catch (e) {
+        console.error(`サブsitemap取得エラー: ${subUrl}`);
+      }
+    }
+    console.log(`sitemap から ${allUrls.length} 件の URL を取得`);
+    return allUrls;
+  } else {
+    // 通常のsitemap
+    const matches = xml.matchAll(/<loc>([^<]+)<\/loc>/g);
+    const urls: string[] = [];
+    for (const m of matches) {
+      urls.push(m[1].trim());
+    }
+    console.log(`sitemap から ${urls.length} 件の URL を取得`);
+    return urls;
   }
-  console.log(`sitemap から ${urls.length} 件の URL を取得`);
-  return urls;
 }
 
 async function fetchDisallowedPaths(): Promise<RegExp[]> {
@@ -125,7 +162,7 @@ function extractText(html: string): { title: string; text: string } {
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"' )
+    .replace(/&quot;/g, '"')
     .replace(/&#[0-9]+;/g, ' ')
     .replace(/\s{2,}/g, ' ')
     .trim();
