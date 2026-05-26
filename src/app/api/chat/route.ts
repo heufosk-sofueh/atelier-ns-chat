@@ -1,10 +1,26 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { NextRequest, NextResponse } from 'next/server';
 import { FAQ_DATA } from './faq-data';
+import { createClient } from '@supabase/supabase-js';
+import OpenAI from 'openai';
 
 const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
+
+// Supabase クライアント（RAG用）
+// 環境変数が未設定の場合は RAG をスキップして既存動作にフォールバック
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
+const openaiKey = process.env.OPENAI_API_KEY;
+
+const supabase = supabaseUrl && supabaseKey
+  ? createClient(supabaseUrl, supabaseKey)
+  : null;
+
+const openai = openaiKey
+  ? new OpenAI({ apiKey: openaiKey })
+  : null;
 
 const SITE_MAP = `
 【アトリエエヌズ カテゴリーURL】
@@ -73,6 +89,37 @@ async function searchProducts(query: string): Promise<Product[]> {
   }
 }
 
+// ===== RAG: ユーザーの質問に関連するチャンクを Supabase から検索 =====
+async function searchRAG(query: string): Promise<string> {
+  if (!supabase || !openai) return '';
+  try {
+    // 質問をベクトル化
+    const embeddingRes = await openai.embeddings.create({
+      model: 'text-embedding-3-small',
+      input: query,
+    });
+    const embedding = embeddingRes.data[0].embedding;
+
+    // Supabase pgvector で類似度検索（上位3件）
+    const { data, error } = await supabase.rpc('match_documents', {
+      query_embedding: embedding,
+      match_threshold: 0.5,
+      match_count: 3,
+    });
+
+    if (error || !data || data.length === 0) return '';
+
+    const chunks = data.map((d: { url: string; title: string; content: string }) =>
+      `【参考ページ: ${d.title}（${d.url}）】\n${d.content}`
+    );
+    return '\n【RAGで取得したサイト情報】\n' + chunks.join('\n\n');
+  } catch (e) {
+    console.error('RAG search error:', e);
+    return '';
+  }
+}
+// ===== ここまで RAG =====
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -88,7 +135,12 @@ export async function POST(request: NextRequest) {
     const { messages } = await request.json();
     const lastUserMessage = messages[messages.length - 1]?.content || '';
 
-    const products = await searchProducts(lastUserMessage);
+    // 商品検索・RAG検索を並行実行
+    const [products, ragContext] = await Promise.all([
+      searchProducts(lastUserMessage),
+      searchRAG(lastUserMessage),
+    ]);
+
     const productInfo = products.length > 0
       ? `\n【検索結果】以下の商品が見つかりました:\n` +
         products.map(p => `- ${p.title}: ${p.url}`).join('\n')
@@ -99,6 +151,7 @@ export async function POST(request: NextRequest) {
 
 ${SITE_MAP}
 ${productInfo}
+${ragContext}
 
 【サイト公式FAQ・ポリシー情報】
 以下はサイトから収集した正確な情報です。必ずこの情報のみを使用し、推測で答えないでください：
@@ -107,7 +160,7 @@ ${FAQ_DATA}
 
 【回答ルール】
 1. 回答本文にURLやリンクは一切書かないでください
-2. ポリシー・返品・配送・キャンペーン・営業日に関する質問は、必ず上記【サイト公式FAQ・ポリシー情報】に明記されている内容だけを使用してください。FAQに書かれていないことは絶対に補足・推測・断言しないでください
+2. ポリシー・返品・配送・キャンペーン・営業日に関する質問は、必ず上記【サイト公式FAQ・ポリシー情報】と【RAGで取得したサイト情報】に明記されている内容だけを使用してください。記載がないことは絶対に補足・推測・断言しないでください
 3. FAQに記載がない内容・お客様の希望に完全には応えられない場合は、「詳細はお問い合わせください」と案内し、必ずお問い合わせページのNAVボタンを末尾に追加してください
 4. FAQに記載があり、明確に回答できる場合はお問い合わせボタンは不要です（ただし関連ページへのNAVボタンは付けてください）
 5. 商品が見つかった場合は、上記【検索結果】の正確なURLのみを使用してください
