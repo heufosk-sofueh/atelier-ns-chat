@@ -129,7 +129,7 @@ export default function Home() {
                           boxSizing: 'border-box',
                 }}
               >
-              <h1 style={{ textAlign: 'center', marginBottom: '16px', fontSize: '20px', fontWeight: 'bold', flexShrink: 0 }}>アトリエエヌズ AIチャット</h1>h1>
+              <h1 style={{ textAlign: 'center', marginBottom: '16px', fontSize: '20px', fontWeight: 'bold', flexShrink: 0 }}>アトリエエヌズ AIチャット</h1>
               <div
                         ref={messagesContainerRef}
                         style={{
@@ -161,7 +161,7 @@ export default function Home() {
                                                   lineHeight: '1.6',
                                   }}>
                                                 {msg.content}
-                                              </div>div>
+                                              </div>
                                     {msg.navButtons && msg.navButtons.length > 0 && (
                                                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '8px', maxWidth: '80%' }}>
                                                     {msg.navButtons.map((btn, j) => (
@@ -181,20 +181,20 @@ export default function Home() {
                                                                                               }}
                                                                                           >
                                                                         {btn.label} →
-                                                                      </a>a>
+                                                                      </a>
                                                                     ))}
-                                                  </div>div>
+                                                  </div>
                                               )}
-                                  </div>div>
+                                  </div>
                                 ))}
                 {loading && (
                                   <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
-                                              <div style={{ padding: '10px 14px', borderRadius: '12px', backgroundColor: '#ffffff', border: '1px solid #e5e7eb', color: '#6b7280' }}>入力中...</div>div>
-                                  </div>div>
+                                              <div style={{ padding: '10px 14px', borderRadius: '12px', backgroundColor: '#ffffff', border: '1px solid #e5e7eb', color: '#6b7280' }}>入力中...</div>
+                                  </div>
                       )}
                 {/* スクロール位置マーカー */}
                       <div ref={messagesEndRef} />
-              </div>div>
+              </div>
               <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
                       <input
                                   ref={inputRef}
@@ -217,8 +217,8 @@ export default function Home() {
                                   style={{ backgroundColor: '#3b82f6', color: '#ffffff', padding: '10px 20px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '16px', opacity: loading ? 0.5 : 1 }}
                                 >
                                 送信
-                      </button>button>
-              </div>div>
-        </main>main>
+                      </button>
+              </div>
+        </main>
       );
 }</main>
