@@ -5,6 +5,9 @@
  * 実行方法:
  *   npx tsx scripts/crawl-and-embed.ts
  *
+ * 全件リフレッシュ（トランケートして再実行）:
+ *   FULL_REFRESH=true npx tsx scripts/crawl-and-embed.ts
+ *
  * 事前に .env.local に以下を設定してください:
  *   SUPABASE_URL, SUPABASE_SERVICE_KEY, OPENAI_API_KEY
  */
@@ -17,19 +20,17 @@ import OpenAI from 'openai';
 // --- 環境変数の読み込み (.env.local) ---
 function loadEnv() {
   const envPath = path.join(process.cwd(), '.env.local');
-  if (!fs.existsSync(envPath)) {
-    console.error('.env.local が見つかりません');
-    process.exit(1);
-  }
-  const lines = fs.readFileSync(envPath, 'utf-8').split('\n');
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith('#')) continue;
-    const eqIdx = trimmed.indexOf('=');
-    if (eqIdx === -1) continue;
-    const key = trimmed.slice(0, eqIdx).trim();
-    const value = trimmed.slice(eqIdx + 1).trim();
-    if (!process.env[key]) process.env[key] = value;
+  if (fs.existsSync(envPath)) {
+    const lines = fs.readFileSync(envPath, 'utf-8').split('\n');
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const eqIdx = trimmed.indexOf('=');
+      if (eqIdx === -1) continue;
+      const key = trimmed.slice(0, eqIdx).trim();
+      const value = trimmed.slice(eqIdx + 1).trim();
+      if (!process.env[key]) process.env[key] = value;
+    }
   }
 }
 loadEnv();
@@ -37,6 +38,7 @@ loadEnv();
 const SUPABASE_URL = process.env.SUPABASE_URL!;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY!;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY!;
+const FULL_REFRESH = process.env.FULL_REFRESH === 'true';
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY || !OPENAI_API_KEY) {
   console.error('環境変数 SUPABASE_URL / SUPABASE_SERVICE_KEY / OPENAI_API_KEY が未設定です');
@@ -67,24 +69,17 @@ async function fetchSitemapUrls(): Promise<string[]> {
   console.log('sitemap.xml を取得中...');
   const res = await fetch(SITEMAP_URL);
   const xml = await res.text();
-
-  // sitemapindex か通常のsitemapかを判定
   const isSitemapIndex = xml.includes('<sitemapindex');
-
   if (isSitemapIndex) {
-    // サブsitemapのURLを取得
     const subSitemapMatches = xml.matchAll(/<loc>([^<]+)<\/loc>/g);
     const subSitemapUrls: string[] = [];
     for (const m of subSitemapMatches) {
       const url = m[1].trim();
-      // 日本語（デフォルト）のsitemapのみ対象（zh, zh-tw, zh-cn は除外）
       if (!url.includes('/zh/') && !url.includes('/zh-tw/') && !url.includes('/zh-cn/')) {
         subSitemapUrls.push(url);
       }
     }
     console.log(`サブsitemap: ${subSitemapUrls.length} 件を検出`);
-
-    // 各サブsitemapからURLを収集
     const allUrls: string[] = [];
     for (const subUrl of subSitemapUrls) {
       try {
@@ -102,7 +97,6 @@ async function fetchSitemapUrls(): Promise<string[]> {
     console.log(`sitemap から ${allUrls.length} 件の URL を取得`);
     return allUrls;
   } else {
-    // 通常のsitemap
     const matches = xml.matchAll(/<loc>([^<]+)<\/loc>/g);
     const urls: string[] = [];
     for (const m of matches) {
@@ -203,6 +197,17 @@ async function saveChunk(
 
 async function main() {
   console.log('=== atelierns.com RAG クローラー 開始 ===\n');
+
+  // FULL_REFRESH モードのときはまずTRUNCATE
+  if (FULL_REFRESH) {
+    console.log('フルリフレッシュモード: documents テーブルをクリアします...');
+    const { error } = await supabase.rpc('truncate_documents');
+    if (error) {
+      // RPCがない場合は直接DELETE
+      await supabase.from('documents').delete().neq('id', 0);
+    }
+    console.log('クリア完了\n');
+  }
 
   const disallowed = await fetchDisallowedPaths();
   const allUrls = await fetchSitemapUrls();
