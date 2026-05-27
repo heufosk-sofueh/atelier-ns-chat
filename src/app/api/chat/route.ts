@@ -1,3 +1,4 @@
+// Fix: keep product context across conversation turns for NAV buttons
 import Anthropic from '@anthropic-ai/sdk';
 import { NextRequest, NextResponse } from 'next/server';
 import { FAQ_DATA } from './faq-data';
