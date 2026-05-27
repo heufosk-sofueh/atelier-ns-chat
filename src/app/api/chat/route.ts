@@ -53,17 +53,33 @@ const SITE_MAP = `
 - 注文商品が届かない場合: https://atelierns.com/pages/cyuumonsyouhin
 `;
 
+type Message = { role: string; content: string };
+
 type Product = {
   title: string;
   handle: string;
   url: string;
 };
 
+// ===== [1] 会話履歴からNS品番を抽出 =====
+// 半角/全角スペース・ハイフン・アンダースコアすべてに対応
+function extractProductKeywordsFromHistory(messages: Message[]): string[] {
+  const keywords: string[] = [];
+  const recentMessages = messages.slice(-5);
+  for (const msg of recentMessages) {
+            const codeMatches = msg.content.match(/NS[\s\u3000\-\uff0d_]*\d{3,4}/gi) ?? [];
+    keywords.push(
+            ...codeMatches.map(k => k.replace(/[\s\u3000\-\uff0d_]+/g, '-').toUpperCase())
+    );
+  }
+  return [...new Set(keywords)];
+}
+
 async function searchProducts(query: string): Promise<Product[]> {
   try {
     const results: Product[] = [];
     let page = 1;
-    const keywords = query.toLowerCase().replace(/\s/g, '');
+    const keywords = query.toLowerCase().replace(/s/g, '');
 
     while (page <= 10) {
       const res = await fetch(`https://atelierns.com/products.json?limit=250&page=${page}`);
@@ -71,7 +87,7 @@ async function searchProducts(query: string): Promise<Product[]> {
       if (!data.products || data.products.length === 0) break;
 
       for (const p of data.products) {
-        const title = p.title.toLowerCase().replace(/\s/g, '');
+        const title = p.title.toLowerCase().replace(/s/g, '');
         if (title.includes(keywords) || keywords.includes(title.slice(0, 4))) {
           results.push({
             title: p.title,
@@ -110,9 +126,14 @@ async function searchRAG(query: string): Promise<string> {
     if (error || !data || data.length === 0) return '';
 
     const chunks = data.map((d: { url: string; title: string; content: string }) =>
-      `【参考ページ: ${d.title}（${d.url}）】\n${d.content}`
+      `【参考ページ: ${d.title}（${d.url}）】
+${d.content}`
     );
-    return '\n【RAGで取得したサイト情報】\n' + chunks.join('\n\n');
+    return '
+【RAGで取得したサイト情報】
+' + chunks.join('
+
+');
   } catch (e) {
     console.error('RAG search error:', e);
     return '';
@@ -135,29 +156,58 @@ export async function POST(request: NextRequest) {
     const { messages } = await request.json();
     const lastUserMessage = messages[messages.length - 1]?.content || '';
 
-    // 商品検索・RAG検索を並行実行
-    const [products, ragContext] = await Promise.all([
-      searchProducts(lastUserMessage),
-      searchRAG(lastUserMessage),
-    ]);
+    // ===== [1] 商品検索：現ターン → ヒットなければ履歴キーワードで再検索 =====
+    let products = await searchProducts(lastUserMessage);
+    let historyKeywords: string[] = [];
+
+    if (products.length === 0 && messages.length > 1) {
+      historyKeywords = extractProductKeywordsFromHistory(messages.slice(0, -1));
+      if (historyKeywords.length > 0) {
+        for (const kw of historyKeywords) {
+          const fallback = await searchProducts(kw);
+          if (fallback.length > 0) {
+            products = fallback;
+            break;
+          }
+        }
+      }
+    }
+
+    // ===== [5] RAGは「履歴品番 + 現ターン」で検索してコンテキスト精度を向上 =====
+    const ragQuery = historyKeywords.length > 0
+      ? `${historyKeywords[0]} ${lastUserMessage}`
+      : lastUserMessage;
+    const ragContext = await searchRAG(ragQuery);
 
     const productInfo = products.length > 0
-      ? `\n【検索結果】以下の商品が見つかりました:\n` +
-        products.map(p => `- ${p.title}: ${p.url}`).join('\n')
-      : '\n【検索結果】該当する商品は見つかりませんでした。';
+      ? `
+【検索結果】以下の商品が見つかりました:
+` +
+        products.map(p => `- ${p.title}: ${p.url}`).join('
+')
+      : '
+【検索結果】該当する商品は見つかりませんでした。';
 
     const systemPrompt = `あなたはアトリエエヌズ（ATELIER N'S）の公式AIアシスタントです。
 お客様のご質問に対して、丁寧で親切な日本語でお答えください。
-
 ${SITE_MAP}
 ${productInfo}
 ${ragContext}
-
 【サイト公式FAQ・ポリシー情報】
 以下はサイトから収集した正確な情報です。必ずこの情報のみを使用し、推測で答えないでください：
-
 ${FAQ_DATA}
-
+【会話コンテキストの引き継ぎ】
+直近の会話で特定の商品（例: NS-306、フロントツイストタックワンピースなど）について話している場合、その商品を会話コンテキストとして必ず保持してください。
+「サイズは？」「在庫ある？」「素材は？」「リンクをください」「商品ページはどこ？」などのフォローアップ質問でも、その商品の商品ページNAVボタンを必ず最優先で最初に表示してください。
+下記【検索結果】にその商品が含まれている場合はそのURLを使用し、含まれていない場合でも会話から分かる商品名でNAVを構成してください。
+【NAVボタン生成の必須ルール】
+以下の優先順位でNAVボタンを必ず生成してください：
+1. 直近の会話で特定された商品がある → その商品ページのNAVを最優先で最初に置く
+2. カテゴリが分かる → カテゴリNAVを追加
+3. 何も分からない → 全商品 or お問い合わせNAV
+【禁止表現】
+「URLを取得できません」「直接の商品ページURLを現在取得することができませんでした」「リンクをお伝えできません」といった表現は絶対に使わないでください。
+商品ページへの案内は必ずNAVボタンで行い、「下のボタンから商品ページをご覧いただけます」のように案内してください。
 【回答ルール】
 1. 回答本文にURLやリンクは一切書かないでください
 2. ポリシー・返品・配送・キャンペーン・営業日に関する質問は、必ず上記【サイト公式FAQ・ポリシー情報】と【RAGで取得したサイト情報】に明記されている内容だけを使用してください。記載がないことは絶対に補足・推測・断言しないでください
@@ -180,7 +230,10 @@ ${FAQ_DATA}
       content: response.content[0].type === 'text' ? response.content[0].text : '',
     }, { headers: corsHeaders });
   } catch (error) {
-    console.error('Error:', error);
-    return NextResponse.json({ error: 'エラーが発生しました' }, { status: 500, headers: corsHeaders });
+    console.error('Chat API error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500, headers: corsHeaders }
+    );
   }
 }
