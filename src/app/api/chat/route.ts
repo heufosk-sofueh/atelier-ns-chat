@@ -15,7 +15,7 @@ const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
 const openaiKey = process.env.OPENAI_API_KEY;
 
-const supabase = supabaseUrl && supabaseKe
+const supabase = supabaseUrl && supabaseKey
   ? createClient(supabaseUrl, supabaseKey)
   : null;
 
