@@ -15,7 +15,7 @@ const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
 const openaiKey = process.env.OPENAI_API_KEY;
 
-const supabase = supabaseUrl && supabaseKey
+const supabase = supabaseUrl && supabaseKe
   ? createClient(supabaseUrl, supabaseKey)
   : null;
 
@@ -130,12 +130,8 @@ async function searchRAG(query: string): Promise<string> {
       `【参考ページ: ${d.title}（${d.url}）】
 ${d.content}`
     );
-    return '
-【RAGで取得したサイト情報】
-' + chunks.join('
-
-');
-  } catch (e) {
+        return `\n【RAGで取得したサイト情報】\n` + chunks.join('\n\n');
+  }     catch (e) {
     console.error('RAG search error:', e);
     return '';
   }
@@ -184,10 +180,8 @@ export async function POST(request: NextRequest) {
       ? `
 【検索結果】以下の商品が見つかりました:
 ` +
-        products.map(p => `- ${p.title}: ${p.url}`).join('
-')
-      : '
-【検索結果】該当する商品は見つかりませんでした。';
+        products.map(p => `- ${p.title}: ${p.url}`).join('\n')
+            : `\n【検索結果】該当する商品は見つかりませんでした。`;
 
     const systemPrompt = `あなたはアトリエエヌズ（ATELIER N'S）の公式AIアシスタントです。
 お客様のご質問に対して、丁寧で親切な日本語でお答えください。
