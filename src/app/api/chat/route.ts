@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { FAQ_DATA } from './faq-data';
 import { createClient } from '@supabase/supabase-js';
 import OpenAI from 'openai';
+import { createHash } from 'crypto';
 
 const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -138,6 +139,43 @@ ${d.content}`
 }
 // ===== ここまで RAG =====
 
+// ===== [LOG] 利用者の書き込みログを chat_logs に保存 =====
+// session_id はクライアント側に識別子が無いため、
+// IP + User-Agent + 会話の最初のユーザー発話 から安定したハッシュを生成して
+// 同一会話のターンをグルーピングする（ベストエフォート）。
+function deriveSessionId(messages: Message[], ip: string, userAgent: string): string {
+  const firstUser = messages.find(m => m.role === 'user')?.content ?? '';
+  return createHash('sha256')
+    .update(`${ip}|${userAgent}|${firstUser}`)
+    .digest('hex')
+    .slice(0, 32);
+}
+
+// ログ書き込みは失敗してもチャット応答を妨げない（fire-and-forget）
+async function logChat(
+  sessionId: string,
+  userAgent: string,
+  rows: { role: string; content: string }[],
+): Promise<void> {
+  if (!supabase) return;
+  try {
+    const payload = rows
+      .filter(r => r.content && r.content.trim().length > 0)
+      .map(r => ({
+        session_id: sessionId,
+        role: r.role,
+        content: r.content,
+        user_agent: userAgent,
+      }));
+    if (payload.length === 0) return;
+    const { error } = await supabase.from('chat_logs').insert(payload);
+    if (error) console.error('chat_logs insert error:', error.message);
+  } catch (e) {
+    console.error('chat_logs unexpected error:', e);
+  }
+}
+// ===== ここまで LOG =====
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -152,6 +190,14 @@ export async function POST(request: NextRequest) {
   try {
     const { messages } = await request.json();
     const lastUserMessage = messages[messages.length - 1]?.content || '';
+
+    // ===== [LOG] リクエストメタ情報を取得 =====
+    const userAgent = request.headers.get('user-agent') ?? '';
+    const ip =
+      request.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
+      request.headers.get('x-real-ip') ||
+      '';
+    const sessionId = deriveSessionId(messages, ip, userAgent);
 
     // ===== [1] 商品検索：現ターン → ヒットなければ履歴キーワードで再検索 =====
     let products = await searchProducts(lastUserMessage);
@@ -221,8 +267,17 @@ ${FAQ_DATA}
       messages: messages,
     });
 
+    const assistantText =
+      response.content[0].type === 'text' ? response.content[0].text : '';
+
+    // ===== [LOG] 今ターンのユーザー発話とAI応答を保存（応答返却を妨げない）=====
+    void logChat(sessionId, userAgent, [
+      { role: 'user', content: lastUserMessage },
+      { role: 'assistant', content: assistantText },
+    ]);
+
     return NextResponse.json({
-      content: response.content[0].type === 'text' ? response.content[0].text : '',
+      content: assistantText,
     }, { headers: corsHeaders });
   } catch (error) {
     console.error('Chat API error:', error);
