@@ -9,9 +9,9 @@ const styles = `
   position: fixed; bottom: 120px; right: 16px;
   height: 52px; border-radius: 26px;
   padding: 0 18px;
-  background: #7c3aed; color: white; border: none;
+  background: rgba(124,58,237,0.88); color: white; border: none;
   cursor: pointer; font-size: 14px; font-weight: bold;
-  box-shadow: 0 4px 16px rgba(124,58,237,0.4);
+  box-shadow: 0 4px 16px rgba(124,58,237,0.35);
   z-index: 99999; display: flex;
   align-items: center; justify-content: center;
   gap: 6px;
@@ -111,7 +111,7 @@ document.head.appendChild(styleEl);
 
 const btn = document.createElement('button');
 btn.id = 'ans-chat-btn';
-btn.innerHTML = '\u{1F4AC} スタッフに聞く';
+btn.innerHTML = '\u{1F4AC} チャットで質問';
 btn.title = 'AIスタッフに質問する';
 document.body.appendChild(btn);
 
