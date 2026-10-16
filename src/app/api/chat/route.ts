@@ -292,14 +292,25 @@ FAQ・ポリシーに沿って案内できる内容は、該当の案内ペー�
     const assistantText =
       response.content[0].type === 'text' ? response.content[0].text : '';
 
+    // ===== 商品・サイズ・コーデ相談にはデザイナー丹羽の公式LINEを必ず添える（モデルの付け忘れ対策）=====
+    // 回答に商品ページ(/products/)のNAVが含まれる＝商品まわりの相談とみなす。
+    // 返品・交換・返金・配送・支払い・キャンペーン等の手続き/ポリシー系は対象外（LINEへ誘導しない方針）。
+    const lastUserText = typeof lastUserMessage === 'string' ? lastUserMessage : '';
+    const isPolicyOrReturn = /返品|交換|返金|キャンセル|配送|送料|発送|支払|決済|クーポン|キャンペーン/.test(lastUserText);
+    const mentionsProduct = /<!--NAV:[^>]*\/products\//.test(assistantText);
+    const hasLineNav = /line-soudan/.test(assistantText);
+    const finalText = (mentionsProduct && !isPolicyOrReturn && !hasLineNav)
+      ? assistantText.replace(/\s*$/, '') + '\n<!--NAV:{"label":"デザイナーに相談できるLINE","url":"https://atelierns.com/pages/line-soudan"}-->'
+      : assistantText;
+
     // ===== [LOG] 今ターンのユーザー発話とAI応答を保存（応答返却を妨げない）=====
     void logChat(sessionId, userAgent, [
       { role: 'user', content: lastUserMessage },
-      { role: 'assistant', content: assistantText },
+      { role: 'assistant', content: finalText },
     ]);
 
     return NextResponse.json({
-      content: assistantText,
+      content: finalText,
     }, { headers: corsHeaders });
   } catch (error) {
     console.error('Chat API error:', error);
